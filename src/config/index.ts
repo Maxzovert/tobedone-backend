@@ -1,0 +1,15 @@
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+export const config = {
+  port: parseInt(process.env.PORT || "3000", 10),
+  jwtSecret: process.env.JWT_SECRET || "dev-secret-change-me",
+  databaseUrl: process.env.DATABASE_URL || "",
+  uploadDir: "uploads",
+  jwtExpiresIn: "7d" as const,
+};
+
+if (!config.databaseUrl) {
+  console.warn("WARNING: DATABASE_URL is not set");
+}

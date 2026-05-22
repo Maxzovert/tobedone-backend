@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { createServer } from "http";
 import { config } from "./config";
+import { isCloudinaryConfigured } from "./services/cloudinary.service";
 import apiRoutes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { initSocketServer } from "./sockets";
@@ -51,6 +52,13 @@ httpServer.on("error", (err: NodeJS.ErrnoException) => {
 httpServer.listen(config.port, "0.0.0.0", async () => {
   console.log(`Tobedone API running on http://localhost:${config.port}`);
   console.log(`LAN access: use your machine IP, e.g. http://192.168.x.x:${config.port}`);
+  if (isCloudinaryConfigured()) {
+    console.log(`Cloudinary: enabled (folder: ${config.cloudinary.folder})`);
+  } else {
+    console.warn(
+      "Cloudinary: not configured — images saved locally. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET on Render."
+    );
+  }
 
   const ok = await checkDatabase();
   if (ok) {

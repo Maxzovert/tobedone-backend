@@ -8,6 +8,13 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || "",
   uploadDir: "uploads",
   jwtExpiresIn: "7d" as const,
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+    apiKey: process.env.CLOUDINARY_API_KEY || "",
+    apiSecret: process.env.CLOUDINARY_API_SECRET || "",
+    /** Root folder in your Cloudinary media library */
+    folder: process.env.CLOUDINARY_FOLDER || "TOBEDONE",
+  },
 };
 
 if (!config.databaseUrl) {

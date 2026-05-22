@@ -3,13 +3,14 @@ import path from "path";
 import fs from "fs";
 import { config } from "../config";
 import { createId } from "./id";
+import { isCloudinaryConfigured } from "../services/cloudinary.service";
 
 const uploadPath = path.join(process.cwd(), config.uploadDir);
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadPath),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -37,8 +38,9 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   }
 };
 
+/** Images go to Cloudinary when configured; otherwise saved under /uploads. */
 export const upload = multer({
-  storage,
+  storage: isCloudinaryConfigured() ? multer.memoryStorage() : diskStorage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });

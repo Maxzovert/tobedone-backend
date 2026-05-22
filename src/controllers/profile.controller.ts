@@ -5,6 +5,7 @@ import { users } from "../db/schema";
 import { AuthenticatedRequest } from "../types";
 import { omitPassword } from "../utils/user";
 import { sendError, sendSuccess } from "../utils/response";
+import { deleteByUrl } from "../services/cloudinary.service";
 
 export async function getProfile(req: AuthenticatedRequest, res: Response) {
   const [user] = await db
@@ -17,10 +18,25 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
 }
 
 export async function updateProfile(req: AuthenticatedRequest, res: Response) {
+  const userId = req.user!.userId;
+
+  if (req.body.avatar !== undefined) {
+    const [current] = await db
+      .select({ avatar: users.avatar })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    const oldAvatar = current?.avatar;
+    const nextAvatar = req.body.avatar as string | null;
+    if (oldAvatar && oldAvatar !== nextAvatar) {
+      await deleteByUrl(oldAvatar);
+    }
+  }
+
   const [user] = await db
     .update(users)
     .set(req.body)
-    .where(eq(users.id, req.user!.userId))
+    .where(eq(users.id, userId))
     .returning();
 
   return sendSuccess(res, omitPassword(user!));

@@ -48,6 +48,9 @@ export const taskGroups = pgTable("task_groups", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
+  icon: varchar("icon", { length: 64 }).default("folder"),
+  kind: varchar("kind", { length: 32 }).default("task").notNull(),
+  groupType: varchar("group_type", { length: 32 }).default("general").notNull(),
 });
 
 export const tasks = pgTable("tasks", {
@@ -66,6 +69,9 @@ export const tasks = pgTable("tasks", {
   createdBy: text("created_by")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  responseNote: text("response_note"),
+  /** assigned = single assignee; project = shared across all members */
+  scope: varchar("scope", { length: 32 }).default("assigned").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -76,6 +82,7 @@ export const todos = pgTable("todos", {
     .references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 500 }).notNull(),
   completed: boolean("completed").default(false).notNull(),
+  taskId: text("task_id").references(() => tasks.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -88,6 +95,9 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   attachments: jsonb("attachments").$type<string[]>().default([]),
   mentionedUserIds: jsonb("mentioned_user_ids").$type<string[]>().default([]),
+  linkedTaskId: text("linked_task_id").references(() => tasks.id, {
+    onDelete: "set null",
+  }),
   readBy: jsonb("read_by").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -146,7 +156,7 @@ export const taskGroupsRelations = relations(taskGroups, ({ one, many }) => ({
   tasks: many(tasks),
 }));
 
-export const tasksRelations = relations(tasks, ({ one }) => ({
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
   taskGroup: one(taskGroups, {
     fields: [tasks.taskGroupId],
     references: [taskGroups.id],
@@ -159,6 +169,12 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
     fields: [tasks.createdBy],
     references: [users.id],
   }),
+  todo: many(todos),
+}));
+
+export const todosRelations = relations(todos, ({ one }) => ({
+  user: one(users, { fields: [todos.userId], references: [users.id] }),
+  task: one(tasks, { fields: [todos.taskId], references: [tasks.id] }),
 }));
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({

@@ -1,18 +1,14 @@
 import { Response } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db } from "../db";
-import { todos } from "../db/schema";
 import { AuthenticatedRequest } from "../types";
 import { createId } from "../utils/id";
 import { sendError, sendSuccess } from "../utils/response";
 import { paramId } from "../utils/params";
+import * as todoService from "../services/todo.service";
+import { db } from "../db";
+import { todos } from "../db/schema";
 
 export async function listTodos(req: AuthenticatedRequest, res: Response) {
-  const items = await db
-    .select()
-    .from(todos)
-    .where(eq(todos.userId, req.user!.userId))
-    .orderBy(desc(todos.createdAt));
+  const items = await todoService.listTodosForUser(req.user!.userId);
   return sendSuccess(res, items);
 }
 
@@ -25,38 +21,21 @@ export async function createTodo(req: AuthenticatedRequest, res: Response) {
       title: req.body.title,
     })
     .returning();
-  return sendSuccess(res, todo, 201);
+  return sendSuccess(res, { ...todo, task: null }, 201);
 }
 
 export async function updateTodo(req: AuthenticatedRequest, res: Response) {
-  const [existing] = await db
-    .select()
-    .from(todos)
-    .where(eq(todos.id, paramId(req)));
-
-  if (!existing || existing.userId !== req.user!.userId) {
-    return sendError(res, "Todo not found", 404);
-  }
-
-  const [todo] = await db
-    .update(todos)
-    .set(req.body)
-    .where(eq(todos.id, paramId(req)))
-    .returning();
-
+  const todo = await todoService.updateUserTodo(req.user!.userId, paramId(req), {
+    title: req.body.title,
+    completed: req.body.completed,
+    taskStatus: req.body.taskStatus,
+  });
+  if (!todo) return sendError(res, "Todo not found", 404);
   return sendSuccess(res, todo);
 }
 
 export async function deleteTodo(req: AuthenticatedRequest, res: Response) {
-  const [existing] = await db
-    .select()
-    .from(todos)
-    .where(eq(todos.id, paramId(req)));
-
-  if (!existing || existing.userId !== req.user!.userId) {
-    return sendError(res, "Todo not found", 404);
-  }
-
-  await db.delete(todos).where(eq(todos.id, paramId(req)));
+  const ok = await todoService.deleteUserTodo(req.user!.userId, paramId(req));
+  if (!ok) return sendError(res, "Todo not found", 404);
   return sendSuccess(res, { deleted: true });
 }

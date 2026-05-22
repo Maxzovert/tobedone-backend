@@ -23,6 +23,8 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
     "image/png",
     "image/gif",
     "image/webp",
+    "image/heic",
+    "image/heif",
     "application/pdf",
     "text/plain",
     "application/msword",

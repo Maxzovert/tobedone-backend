@@ -82,8 +82,20 @@ export function initSocketServer(httpServer: HttpServer) {
         content: string;
         attachments?: string[];
         mentionedUserIds?: string[];
+        linkedTaskId?: string;
+        assignTask?: {
+          title: string;
+          assignedTo: string;
+          taskGroupId: string;
+        };
       }) => {
         const message = await messageService.createMessage(userId, data);
+        if (!message) {
+          socket.emit("message:error", {
+            error: "Only the project owner can post in admin groups",
+          });
+          return;
+        }
         socket.emit("message:sent", message);
       }
     );

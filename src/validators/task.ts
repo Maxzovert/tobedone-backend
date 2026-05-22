@@ -21,4 +21,5 @@ export const updateTaskSchema = z.object({
 
 export const respondTaskSchema = z.object({
   action: z.enum(["accept", "reject"]),
+  note: z.string().max(2000).optional(),
 });

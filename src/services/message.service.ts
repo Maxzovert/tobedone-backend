@@ -1,14 +1,68 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../db";
-import { messages, reactions, users } from "../db/schema";
+import { messages, reactions, tasks, users } from "../db/schema";
 import { createId } from "../utils/id";
 import { createNotification } from "./notification.service";
+import { createTask } from "./task.service";
+import { assertGroupPostAccess } from "./project.service";
 import { Server as SocketServer } from "socket.io";
 
 let io: SocketServer | null = null;
 
 export function setMessageSocketServer(server: SocketServer) {
   io = server;
+}
+
+export async function broadcastTaskUpdate(
+  taskId: string,
+  patch: { status: string; title?: string }
+) {
+  if (!io) return;
+  const rows = await db
+    .select({ groupId: messages.groupId })
+    .from(messages)
+    .where(eq(messages.linkedTaskId, taskId));
+  const groupIds = [...new Set(rows.map((r) => r.groupId))];
+  for (const groupId of groupIds) {
+    io.to(`discussion:${groupId}`).emit("task:updated", { taskId, ...patch });
+  }
+}
+
+async function fetchLinkedTasks(taskIds: string[]) {
+  if (taskIds.length === 0) return {} as Record<string, typeof taskRows[0]>;
+  const taskRows = await db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      status: tasks.status,
+      priority: tasks.priority,
+      assignedTo: tasks.assignedTo,
+      taskGroupId: tasks.taskGroupId,
+      assigneeName: users.name,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assignedTo, users.id))
+    .where(inArray(tasks.id, taskIds));
+
+  return taskRows.reduce(
+    (acc, t) => {
+      acc[t.id] = t;
+      return acc;
+    },
+    {} as Record<string, (typeof taskRows)[0]>
+  );
+}
+
+function enrichMessage(
+  message: typeof messages.$inferSelect & { sender: { id: string; name: string; avatar: string | null; email: string } },
+  reactionsList: unknown[] = [],
+  linkedTask?: Awaited<ReturnType<typeof fetchLinkedTasks>>[string]
+) {
+  return {
+    ...message,
+    reactions: reactionsList,
+    linkedTask: linkedTask ?? null,
+  };
 }
 
 export async function getMessages(
@@ -35,6 +89,7 @@ export async function getMessages(
       content: messages.content,
       attachments: messages.attachments,
       mentionedUserIds: messages.mentionedUserIds,
+      linkedTaskId: messages.linkedTaskId,
       readBy: messages.readBy,
       createdAt: messages.createdAt,
       sender: {
@@ -51,6 +106,11 @@ export async function getMessages(
     .limit(limit);
 
   const messageIds = msgs.map((m) => m.id);
+  const linkedTaskIds = msgs
+    .map((m) => m.linkedTaskId)
+    .filter((id): id is string => !!id);
+  const tasksById = await fetchLinkedTasks(linkedTaskIds);
+
   const allReactions =
     messageIds.length > 0
       ? await db
@@ -76,7 +136,15 @@ export async function getMessages(
   );
 
   return {
-    messages: msgs.reverse(),
+    messages: msgs
+      .reverse()
+      .map((m) =>
+        enrichMessage(
+          m as Parameters<typeof enrichMessage>[0],
+          reactionsByMessage[m.id] || [],
+          m.linkedTaskId ? tasksById[m.linkedTaskId] : undefined
+        )
+      ),
     nextCursor: msgs.length === limit ? msgs[0]?.id : undefined,
   };
 }
@@ -88,8 +156,33 @@ export async function createMessage(
     content: string;
     attachments?: string[];
     mentionedUserIds?: string[];
+    linkedTaskId?: string;
+    assignTask?: {
+      title: string;
+      assignedTo: string;
+      taskGroupId: string;
+    };
   }
 ) {
+  const group = await assertGroupPostAccess(data.groupId, senderId);
+  if (!group) return null;
+
+  let linkedTaskId = data.linkedTaskId;
+  const mentioned = new Set(data.mentionedUserIds || []);
+
+  if (data.assignTask) {
+    const task = await createTask(senderId, {
+      title: data.assignTask.title,
+      assignedTo: data.assignTask.assignedTo,
+      taskGroupId: data.assignTask.taskGroupId,
+    });
+    if (!task) return null;
+    linkedTaskId = task.id;
+    mentioned.add(data.assignTask.assignedTo);
+  }
+
+  const mentionedUserIds = [...mentioned];
+
   const [message] = await db
     .insert(messages)
     .values({
@@ -98,7 +191,8 @@ export async function createMessage(
       senderId,
       content: data.content,
       attachments: data.attachments || [],
-      mentionedUserIds: data.mentionedUserIds || [],
+      mentionedUserIds,
+      linkedTaskId: linkedTaskId ?? null,
       readBy: [senderId],
     })
     .returning();
@@ -113,21 +207,30 @@ export async function createMessage(
     .from(users)
     .where(eq(users.id, senderId));
 
-  const enriched = { ...message, sender, reactions: [] };
+  const tasksById = linkedTaskId
+    ? await fetchLinkedTasks([linkedTaskId])
+    : {};
+  const enriched = enrichMessage(
+    { ...message, sender: sender! },
+    [],
+    linkedTaskId ? tasksById[linkedTaskId] : undefined
+  );
 
   if (io) {
     io.to(`discussion:${data.groupId}`).emit("message:new", enriched);
   }
 
-  for (const mentionedId of data.mentionedUserIds || []) {
-    if (mentionedId !== senderId) {
-      await createNotification({
-        userId: mentionedId,
-        title: "You were mentioned",
-        body: data.content.slice(0, 100),
-        type: "mention",
-      });
-    }
+  const assigneeId = data.assignTask?.assignedTo;
+  for (const mentionedId of mentionedUserIds) {
+    if (mentionedId === senderId) continue;
+    if (linkedTaskId && mentionedId === assigneeId) continue;
+
+    await createNotification({
+      userId: mentionedId,
+      title: "You were mentioned",
+      body: data.content.slice(0, 100),
+      type: "mention",
+    });
   }
 
   return enriched;

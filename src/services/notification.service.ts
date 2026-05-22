@@ -3,6 +3,7 @@ import { db } from "../db";
 import { notifications } from "../db/schema";
 import { createId } from "../utils/id";
 import { Server as SocketServer } from "socket.io";
+import { sendPushToUser } from "./push.service";
 
 let io: SocketServer | null = null;
 
@@ -30,6 +31,15 @@ export async function createNotification(params: {
   if (io) {
     io.to(`user:${params.userId}`).emit("notification:new", notification);
   }
+
+  void sendPushToUser(params.userId, {
+    title: params.title,
+    body: params.body,
+    data: {
+      notificationId: notification.id,
+      type: params.type,
+    },
+  });
 
   return notification;
 }

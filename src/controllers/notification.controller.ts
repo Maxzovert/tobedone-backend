@@ -1,7 +1,8 @@
 import { Response } from "express";
 import { AuthenticatedRequest } from "../types";
 import * as notificationService from "../services/notification.service";
-import { sendSuccess } from "../utils/response";
+import { sendError, sendSuccess } from "../utils/response";
+import * as pushService from "../services/push.service";
 
 export async function listNotifications(
   req: AuthenticatedRequest,
@@ -24,4 +25,25 @@ export async function markRead(req: AuthenticatedRequest, res: Response) {
 export async function markAllRead(req: AuthenticatedRequest, res: Response) {
   await notificationService.markAllNotificationsRead(req.user!.userId);
   return sendSuccess(res, { success: true });
+}
+
+export async function registerPushToken(req: AuthenticatedRequest, res: Response) {
+  const { token, platform } = req.body;
+  if (!token?.startsWith("ExponentPushToken[")) {
+    return sendError(res, "Invalid Expo push token", 400);
+  }
+  const row = await pushService.registerPushToken(
+    req.user!.userId,
+    token,
+    platform
+  );
+  return sendSuccess(res, { registered: true, id: row?.id });
+}
+
+export async function removePushToken(req: AuthenticatedRequest, res: Response) {
+  const { token } = req.body;
+  if (token) {
+    await pushService.removePushToken(req.user!.userId, token);
+  }
+  return sendSuccess(res, { removed: true });
 }

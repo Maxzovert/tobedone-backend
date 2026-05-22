@@ -8,6 +8,8 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || "",
   uploadDir: "uploads",
   jwtExpiresIn: "7d" as const,
+  /** Optional — Expo dashboard → Access Tokens (improves push reliability) */
+  expoAccessToken: process.env.EXPO_ACCESS_TOKEN || "",
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
     apiKey: process.env.CLOUDINARY_API_KEY || "",

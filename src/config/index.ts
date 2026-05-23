@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import type { SignOptions } from "jsonwebtoken";
 
 dotenv.config();
 
@@ -7,7 +8,8 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "dev-secret-change-me",
   databaseUrl: process.env.DATABASE_URL || "",
   uploadDir: "uploads",
-  jwtExpiresIn: "7d" as const,
+  /** How long login lasts (e.g. 365d). User stays signed in until logout or expiry. */
+  jwtExpiresIn: (process.env.JWT_EXPIRES_IN || "365d") as SignOptions["expiresIn"],
   /** Optional — Expo dashboard → Access Tokens (improves push reliability) */
   expoAccessToken: process.env.EXPO_ACCESS_TOKEN || "",
   cloudinary: {

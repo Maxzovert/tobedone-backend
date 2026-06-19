@@ -1,0 +1,21 @@
+# Pings Render so the free-tier service stays warm (no spin-down after ~15 min idle).
+# Requires: push this repo to GitHub and enable Actions (free for public repos).
+name: Keep Render awake
+
+on:
+  schedule:
+    # Every 5 minutes (UTC)
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Tobedone API health
+        run: |
+          curl -sfS --max-time 30 \
+            "https://tobedone-backend.onrender.com/health" \
+            | head -c 500
+          echo ""
+          echo "OK — Render health check succeeded"

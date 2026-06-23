@@ -230,6 +230,8 @@ export async function listProjectTasks(projectId: string, userId: string) {
     const myRow = related.find((r) => r.userId === userId);
     return {
       ...task,
+      dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+      createdAt: task.createdAt.toISOString(),
       creatorName: creatorById[task.createdBy] ?? null,
       memberCount: related.length,
       completedCount,

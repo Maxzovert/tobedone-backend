@@ -268,6 +268,10 @@ async function enrichTodosWithTaskContext<
       ...item,
       task: {
         ...item.task,
+        dueDate: item.task.dueDate ? item.task.dueDate.toISOString() : null,
+        createdAt: item.task.createdAt
+          ? item.task.createdAt.toISOString()
+          : item.task.createdAt,
         projectId: gp?.projectId ?? null,
         projectName: gp?.projectName ?? null,
         projectColor: gp?.projectColor ?? null,

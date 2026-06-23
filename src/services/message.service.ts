@@ -36,6 +36,7 @@ async function fetchLinkedTasks(taskIds: string[]) {
       title: tasks.title,
       status: tasks.status,
       priority: tasks.priority,
+      dueDate: tasks.dueDate,
       assignedTo: tasks.assignedTo,
       taskGroupId: tasks.taskGroupId,
       assigneeName: users.name,
@@ -46,7 +47,10 @@ async function fetchLinkedTasks(taskIds: string[]) {
 
   return taskRows.reduce(
     (acc, t) => {
-      acc[t.id] = t;
+      acc[t.id] = {
+        ...t,
+        dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+      };
       return acc;
     },
     {} as Record<string, (typeof taskRows)[0]>

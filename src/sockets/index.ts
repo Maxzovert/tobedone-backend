@@ -87,6 +87,8 @@ export function initSocketServer(httpServer: HttpServer) {
           title: string;
           assignedTo: string;
           taskGroupId: string;
+          priority?: string;
+          dueDate?: string | null;
         };
       }) => {
         const message = await messageService.createMessage(userId, data);

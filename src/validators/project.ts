@@ -33,4 +33,5 @@ export const createProjectTaskSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(5000).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueDate: z.string().datetime().optional().nullable(),
 });

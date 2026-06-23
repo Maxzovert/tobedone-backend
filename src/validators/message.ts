@@ -4,6 +4,8 @@ const assignTaskSchema = z.object({
   title: z.string().min(1).max(500),
   assignedTo: z.string(),
   taskGroupId: z.string(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueDate: z.string().datetime().optional().nullable(),
 });
 
 export const createMessageSchema = z.object({

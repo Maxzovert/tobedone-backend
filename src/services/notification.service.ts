@@ -39,6 +39,8 @@ export async function createNotification(params: {
       notificationId: notification.id,
       type: params.type,
     },
+    channelId:
+      params.type === "task_urgent_reminder" ? "urgent" : "default",
   });
 
   return notification;

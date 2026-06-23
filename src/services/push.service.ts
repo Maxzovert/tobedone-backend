@@ -69,6 +69,7 @@ export async function sendPushToUser(
     title: string;
     body?: string;
     data?: Record<string, string>;
+    channelId?: string;
   }
 ) {
   const tokens = await db
@@ -78,14 +79,18 @@ export async function sendPushToUser(
 
   if (!tokens.length) return;
 
+  const channelId =
+    payload.channelId ||
+    (payload.data?.type === "task_urgent_reminder" ? "urgent" : "default");
+
   const messages: ExpoPushMessage[] = tokens.map(({ token }) => ({
     to: token,
     title: payload.title,
     body: payload.body,
     data: payload.data,
     sound: "default",
-    priority: "high",
-    channelId: "default",
+    priority: channelId === "urgent" ? "high" : "high",
+    channelId,
   }));
 
   await sendExpoPushBatch(messages);

@@ -13,6 +13,8 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: text("password").notNull(),
+  /** Encrypted copy for forgot-password lookup (not bcrypt-reversible). */
+  passwordRecovery: text("password_recovery"),
   avatar: text("avatar"),
   designation: varchar("designation", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),

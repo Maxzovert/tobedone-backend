@@ -161,6 +161,8 @@ export async function createMessage(
       title: string;
       assignedTo: string;
       taskGroupId: string;
+      priority?: string;
+      dueDate?: string | null;
     };
   }
 ) {
@@ -175,6 +177,8 @@ export async function createMessage(
       title: data.assignTask.title,
       assignedTo: data.assignTask.assignedTo,
       taskGroupId: data.assignTask.taskGroupId,
+      priority: data.assignTask.priority,
+      dueDate: data.assignTask.dueDate,
     });
     if (!task) return null;
     linkedTaskId = task.id;

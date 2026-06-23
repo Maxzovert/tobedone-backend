@@ -6,8 +6,10 @@ import { config } from "./config";
 import { isCloudinaryConfigured } from "./services/cloudinary.service";
 import apiRoutes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
+import { sendError } from "./utils/response";
 import { initSocketServer } from "./sockets";
 import { pool, checkDatabase } from "./db";
+import { startReminderScheduler } from "./services/reminder.service";
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,6 +33,10 @@ app.get("/health", async (_req, res) => {
 });
 
 app.use("/api", apiRoutes);
+
+app.use("/api", (_req, res) => {
+  sendError(res, "Not found", 404);
+});
 
 app.use(errorHandler);
 
@@ -63,6 +69,7 @@ httpServer.listen(config.port, "0.0.0.0", async () => {
   const ok = await checkDatabase();
   if (ok) {
     console.log("Database: connected");
+    startReminderScheduler();
   } else {
     console.error(
       "Database: NOT reachable (ENOTFOUND / offline).\n" +

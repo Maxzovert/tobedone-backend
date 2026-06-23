@@ -142,6 +142,7 @@ export async function createProjectTask(
     title: string;
     description?: string;
     priority?: string;
+    dueDate?: string | null;
   }
 ) {
   const member = await isProjectMember(projectId, userId);
@@ -159,6 +160,7 @@ export async function createProjectTask(
       priority: data.priority || "medium",
       assignedTo: null,
       taskGroupId,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
       scope: "project",
       createdBy: userId,
     })

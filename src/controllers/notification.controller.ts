@@ -37,6 +37,19 @@ export async function deleteNotification(req: AuthenticatedRequest, res: Respons
   return sendSuccess(res, { deleted: true, id: deleted.id });
 }
 
+export async function deleteNotificationByBody(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  const { id } = req.body as { id: string };
+  const deleted = await notificationService.deleteNotification(
+    req.user!.userId,
+    id
+  );
+  if (!deleted) return sendError(res, "Notification not found", 404);
+  return sendSuccess(res, { deleted: true, id: deleted.id });
+}
+
 export async function deleteAllNotifications(req: AuthenticatedRequest, res: Response) {
   await notificationService.deleteAllNotifications(req.user!.userId);
   return sendSuccess(res, { deleted: true });

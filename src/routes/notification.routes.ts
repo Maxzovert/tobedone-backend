@@ -7,6 +7,7 @@ import {
   registerPushTokenSchema,
   removePushTokenSchema,
 } from "../validators/push";
+import { deleteNotificationSchema } from "../validators/notification";
 
 const router = Router();
 
@@ -14,6 +15,12 @@ router.use(authMiddleware);
 router.get("/", asyncHandler(notificationController.listNotifications));
 router.patch("/read", asyncHandler(notificationController.markRead));
 router.patch("/read-all", asyncHandler(notificationController.markAllRead));
+router.patch("/clear-all", asyncHandler(notificationController.deleteAllNotifications));
+router.patch(
+  "/delete",
+  validateBody(deleteNotificationSchema),
+  asyncHandler(notificationController.deleteNotificationByBody)
+);
 router.delete("/all", asyncHandler(notificationController.deleteAllNotifications));
 router.post("/clear-all", asyncHandler(notificationController.deleteAllNotifications));
 router.post(

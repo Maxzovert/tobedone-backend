@@ -150,7 +150,11 @@ export async function deleteNotificationsForUserTask(
 }
 
 export async function getNotifications(userId: string) {
-  await purgeStaleNotificationsForUser(userId);
+  try {
+    await purgeStaleNotificationsForUser(userId);
+  } catch (err) {
+    console.warn("purgeStaleNotificationsForUser failed:", err);
+  }
 
   return db
     .select()

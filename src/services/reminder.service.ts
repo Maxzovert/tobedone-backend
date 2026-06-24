@@ -4,7 +4,10 @@ import { tasks, todos, taskGroups } from "../db/schema";
 import { createNotification } from "./notification.service";
 
 const URGENT_MS = 60 * 60 * 1000;
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+/** How often the server checks for reminders */
+const CHECK_INTERVAL_MS = 60 * 60 * 1000;
+/** Do not send the same reminder again within this window */
+const REMINDER_COOLDOWN_MS = 60 * 60 * 1000;
 const DUE_SOON_MS = 60 * 60 * 1000;
 
 const sentKeys = new Set<string>();
@@ -16,7 +19,7 @@ function reminderKey(userId: string, taskId: string, kind: string) {
 function markSent(userId: string, taskId: string, kind: string) {
   const key = reminderKey(userId, taskId, kind);
   sentKeys.add(key);
-  setTimeout(() => sentKeys.delete(key), CHECK_INTERVAL_MS);
+  setTimeout(() => sentKeys.delete(key), REMINDER_COOLDOWN_MS);
 }
 
 function wasSent(userId: string, taskId: string, kind: string) {
@@ -61,6 +64,7 @@ async function checkUrgentReminders() {
         title: "Urgent task overdue",
         body: `"${task.title}" was due 1 hour ago. Complete it now.`,
         type: "task_urgent_reminder",
+        data: { taskId: task.id },
       });
       continue;
     }
@@ -79,6 +83,7 @@ async function checkUrgentReminders() {
           title: "Urgent team task overdue",
           body: `"${task.title}" was due 1 hour ago.`,
           type: "task_urgent_reminder",
+          data: { taskId: task.id },
         });
       }
     }
@@ -120,6 +125,7 @@ async function checkDueDateReminders() {
         title: overdue ? "Task overdue" : "Task due soon",
         body: `"${task.title}" ${overdue ? "is past due" : "is due within an hour"}.`,
         type: "task_due_reminder",
+        data: { taskId: task.id },
       });
     };
 
@@ -144,6 +150,9 @@ async function checkDueDateReminders() {
 }
 
 async function checkPriorityNudges() {
+  const now = Date.now();
+  const nudgeAfter = new Date(now - REMINDER_COOLDOWN_MS);
+
   const rows = await db
     .select({
       id: tasks.id,
@@ -156,7 +165,8 @@ async function checkPriorityNudges() {
     .where(
       and(
         inArray(tasks.priority, ["low", "medium", "high"]),
-        or(eq(tasks.status, "pending"), eq(tasks.status, "in_progress"))
+        or(eq(tasks.status, "pending"), eq(tasks.status, "in_progress")),
+        lt(tasks.createdAt, nudgeAfter)
       )
     );
 
@@ -176,6 +186,7 @@ async function checkPriorityNudges() {
         title: `${label} task pending`,
         body: `Still open: "${task.title}"`,
         type: "task_priority_reminder",
+        data: { taskId: task.id },
       });
     };
 

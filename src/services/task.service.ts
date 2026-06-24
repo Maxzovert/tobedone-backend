@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { tasks, taskGroups, todos, users, projectMembers } from "../db/schema";
 import { createId } from "../utils/id";
-import { createNotification } from "./notification.service";
+import { createNotification, deleteNotificationsForTask } from "./notification.service";
 import {
   createTodoForTask,
   createTodosForProjectMembers,
@@ -55,6 +55,7 @@ export async function createTask(
       title: "New task assigned",
       body: `Added to your todos: ${data.title}`,
       type: "task_assigned",
+      data: { taskId: task.id },
     });
   }
 
@@ -94,6 +95,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string) {
+  await deleteNotificationsForTask(taskId);
   await db.delete(tasks).where(eq(tasks.id, taskId));
 }
 
@@ -129,6 +131,7 @@ export async function respondToTask(
       title: action === "accept" ? "Task accepted" : "Task declined",
       body: `${task.title} was ${action === "accept" ? "accepted" : "declined"}.${notePart}`,
       type: "task_response",
+      data: { taskId: task.id },
     });
   }
 
@@ -180,6 +183,7 @@ export async function createProjectTask(
       title: "New project task",
       body: `Added to your todos: ${data.title}`,
       type: "project_task",
+      data: { taskId: task.id },
     });
   }
 

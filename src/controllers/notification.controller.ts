@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthenticatedRequest } from "../types";
 import * as notificationService from "../services/notification.service";
 import { sendError, sendSuccess } from "../utils/response";
+import { paramId } from "../utils/params";
 import * as pushService from "../services/push.service";
 
 export async function listNotifications(
@@ -25,6 +26,20 @@ export async function markRead(req: AuthenticatedRequest, res: Response) {
 export async function markAllRead(req: AuthenticatedRequest, res: Response) {
   await notificationService.markAllNotificationsRead(req.user!.userId);
   return sendSuccess(res, { success: true });
+}
+
+export async function deleteNotification(req: AuthenticatedRequest, res: Response) {
+  const deleted = await notificationService.deleteNotification(
+    req.user!.userId,
+    paramId(req)
+  );
+  if (!deleted) return sendError(res, "Notification not found", 404);
+  return sendSuccess(res, { deleted: true, id: deleted.id });
+}
+
+export async function deleteAllNotifications(req: AuthenticatedRequest, res: Response) {
+  await notificationService.deleteAllNotifications(req.user!.userId);
+  return sendSuccess(res, { deleted: true });
 }
 
 export async function registerPushToken(req: AuthenticatedRequest, res: Response) {

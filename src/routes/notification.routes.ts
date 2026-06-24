@@ -14,6 +14,8 @@ router.use(authMiddleware);
 router.get("/", asyncHandler(notificationController.listNotifications));
 router.patch("/read", asyncHandler(notificationController.markRead));
 router.patch("/read-all", asyncHandler(notificationController.markAllRead));
+router.delete("/all", asyncHandler(notificationController.deleteAllNotifications));
+router.post("/clear-all", asyncHandler(notificationController.deleteAllNotifications));
 router.post(
   "/push-token",
   validateBody(registerPushTokenSchema),
@@ -24,5 +26,7 @@ router.post(
   validateBody(removePushTokenSchema),
   asyncHandler(notificationController.removePushToken)
 );
+router.delete("/:id", asyncHandler(notificationController.deleteNotification));
+router.post("/:id/remove", asyncHandler(notificationController.deleteNotification));
 
 export default router;

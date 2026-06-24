@@ -123,6 +123,7 @@ export const notifications = pgTable("notifications", {
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body"),
   type: varchar("type", { length: 64 }).notNull(),
+  data: jsonb("data").$type<Record<string, string> | null>(),
   read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../db";
-import { messages, reactions, tasks, users } from "../db/schema";
+import { messages, projectMembers, reactions, tasks, users } from "../db/schema";
 import { createId } from "../utils/id";
 import { createNotification } from "./notification.service";
 import { createTask } from "./task.service";
@@ -11,6 +11,68 @@ let io: SocketServer | null = null;
 
 export function setMessageSocketServer(server: SocketServer) {
   io = server;
+}
+
+function getDiscussionViewerIds(groupId: string): Set<string> {
+  if (!io) return new Set();
+  const room = io.sockets.adapter.rooms.get(`discussion:${groupId}`);
+  if (!room) return new Set();
+
+  const viewerIds = new Set<string>();
+  for (const socketId of room) {
+    const socket = io.sockets.sockets.get(socketId) as
+      | { user?: { userId: string } }
+      | undefined;
+    const id = socket?.user?.userId;
+    if (id) viewerIds.add(id);
+  }
+  return viewerIds;
+}
+
+function messagePreview(content: string, attachments?: string[]) {
+  const text = content.trim();
+  if (text) return text.slice(0, 100);
+  if (attachments?.length) return "Sent an attachment";
+  return "New message";
+}
+
+async function notifyMessageRecipients(params: {
+  group: { id: string; name: string; projectId: string };
+  senderId: string;
+  senderName: string;
+  content: string;
+  attachments?: string[];
+  mentionedUserIds: string[];
+  assigneeId?: string;
+}) {
+  const members = await db
+    .select({ userId: projectMembers.userId })
+    .from(projectMembers)
+    .where(eq(projectMembers.projectId, params.group.projectId));
+
+  const preview = messagePreview(params.content, params.attachments);
+  const mentioned = new Set(params.mentionedUserIds);
+  const viewers = getDiscussionViewerIds(params.group.id);
+  const chatData = {
+    groupId: params.group.id,
+    projectId: params.group.projectId,
+    groupName: params.group.name,
+  };
+
+  for (const { userId } of members) {
+    if (userId === params.senderId) continue;
+    if (viewers.has(userId)) continue;
+    if (mentioned.has(userId)) continue;
+    if (params.assigneeId && userId === params.assigneeId) continue;
+
+    await createNotification({
+      userId,
+      title: `${params.senderName} · ${params.group.name}`,
+      body: preview,
+      type: "message",
+      data: chatData,
+    });
+  }
 }
 
 export async function broadcastTaskUpdate(
@@ -229,6 +291,13 @@ export async function createMessage(
   }
 
   const assigneeId = data.assignTask?.assignedTo;
+  const chatData = {
+    groupId: data.groupId,
+    projectId: group.projectId,
+    groupName: group.name,
+  };
+  const preview = messagePreview(data.content, data.attachments);
+
   for (const mentionedId of mentionedUserIds) {
     if (mentionedId === senderId) continue;
     if (linkedTaskId && mentionedId === assigneeId) continue;
@@ -236,10 +305,21 @@ export async function createMessage(
     await createNotification({
       userId: mentionedId,
       title: "You were mentioned",
-      body: data.content.slice(0, 100),
+      body: preview,
       type: "mention",
+      data: chatData,
     });
   }
+
+  await notifyMessageRecipients({
+    group,
+    senderId,
+    senderName: sender!.name,
+    content: data.content,
+    attachments: data.attachments,
+    mentionedUserIds,
+    assigneeId,
+  });
 
   return enriched;
 }

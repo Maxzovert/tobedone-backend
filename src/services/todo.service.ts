@@ -10,6 +10,7 @@ import {
   messages,
 } from "../db/schema";
 import { createId } from "../utils/id";
+import { deleteNotificationsForUserTask } from "./notification.service";
 
 export async function createTodoForTask(
   userId: string,
@@ -381,6 +382,10 @@ export async function deleteUserTodo(userId: string, todoId: string) {
     .where(and(eq(todos.id, todoId), eq(todos.userId, userId)));
 
   if (!existing) return false;
+
+  if (existing.taskId) {
+    await deleteNotificationsForUserTask(userId, existing.taskId);
+  }
 
   await db.delete(todos).where(eq(todos.id, todoId));
   return true;
